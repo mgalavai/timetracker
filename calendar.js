@@ -20,9 +20,12 @@ function initializeEventListeners() {
     loginForm.addEventListener("submit", handleLogin);
   }
 
-  const editAvailabilityButton = document.getElementById("edit-availability");
-  if (editAvailabilityButton) {
-    editAvailabilityButton.addEventListener("click", toggleAvailabilityEditor);
+  const editAvailabilityLink = document.getElementById("edit-availability");
+  if (editAvailabilityLink) {
+    editAvailabilityLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      toggleAvailabilityEditor();
+    });
   }
 
   const saveAvailabilityButton = document.getElementById("save-availability");
@@ -30,24 +33,53 @@ function initializeEventListeners() {
     saveAvailabilityButton.addEventListener("click", saveAvailability);
   }
 
-  const copyPreviousWeekButton = document.getElementById("copy-previous-week");
-  if (copyPreviousWeekButton) {
-    copyPreviousWeekButton.addEventListener("click", copyPreviousWeek);
+  const copyPreviousWeekLink = document.getElementById("copy-previous-week");
+  if (copyPreviousWeekLink) {
+    copyPreviousWeekLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      copyPreviousWeek();
+    });
   }
 
-  const offWholeWeekButton = document.getElementById("off-whole-week");
-  if (offWholeWeekButton) {
-    offWholeWeekButton.addEventListener("click", () => setWholeWeek("unavailable"));
+  const offWholeWeekLink = document.getElementById("off-whole-week");
+  if (offWholeWeekLink) {
+    offWholeWeekLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      setWholeWeek("unavailable");
+    });
   }
 
-  const availableWholeWeekButton = document.getElementById("available-whole-week");
-  if (availableWholeWeekButton) {
-    availableWholeWeekButton.addEventListener("click", () => setWholeWeek("available"));
+  const availableWholeWeekLink = document.getElementById("available-whole-week");
+  if (availableWholeWeekLink) {
+    availableWholeWeekLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      setWholeWeek("available");
+    });
   }
 
   const saveHoursButton = document.getElementById("save-hours");
   if (saveHoursButton) {
     saveHoursButton.addEventListener("click", saveHours);
+  }
+
+  const prevWeekButton = document.getElementById("prev-week");
+  if (prevWeekButton) {
+    prevWeekButton.addEventListener("click", () => navigateWeek('prev'));
+  }
+
+  const nextWeekButton = document.getElementById("next-week");
+  if (nextWeekButton) {
+    nextWeekButton.addEventListener("click", () => navigateWeek('next'));
+  }
+
+  const todayButton = document.getElementById("today");
+  if (todayButton) {
+    todayButton.addEventListener("click", () => navigateWeek('today'));
+  }
+
+  const logoutButton = document.getElementById("logout-button");
+  if (logoutButton) {
+    logoutButton.addEventListener("click", handleLogout);
   }
 }
 
@@ -151,7 +183,12 @@ function initializeCalendar() {
   var calendarEl = document.getElementById("calendar");
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: "dayGridWeek",
-    headerToolbar: false,
+    headerToolbar: {
+      left: 'title',
+      center: '',
+      right: ''
+    },
+    titleFormat: { year: 'numeric', month: 'long' },
     height: "auto",
     selectable: true,
     firstDay: 1, // Start week on Monday
@@ -168,14 +205,10 @@ function initializeCalendar() {
   fetchAvailability();
   selectedDate = new Date();
   updateSelectedDate();
-  
-  // Update current week display
-  updateCurrentWeekDisplay();
-  
-  // Add event listeners for week navigation
-  document.getElementById("prev-week").addEventListener("click", () => navigateWeek('prev'));
-  document.getElementById("next-week").addEventListener("click", () => navigateWeek('next'));
-  document.getElementById("today").addEventListener("click", () => navigateWeek('today'));
+
+  // Move the title to our custom element
+  const titleElement = calendarEl.querySelector('.fc-toolbar-title');
+  document.getElementById('current-month').appendChild(titleElement);
 }
 
 function updateCurrentWeekDisplay() {
@@ -223,7 +256,7 @@ async function fetchEvents() {
     calendar.removeAllEvents();
     data.forEach((entry) => {
       calendar.addEvent({
-        title: `${entry.hours_worked} hours`,
+        title: `${entry.hours_worked} h`,
         start: entry.date,
         allDay: true,
       });
@@ -362,35 +395,40 @@ function toggleAvailabilityEditor() {
   editor.classList.toggle("hidden");
   if (!editor.classList.contains("hidden")) {
     populateAvailabilityToggles();
+    // Scroll to the availability editor
+    editor.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
 function populateAvailabilityToggles() {
-  const togglesContainer = document.getElementById("availability-toggles");
-  togglesContainer.innerHTML = "";
-  const startOfWeek = new Date(calendar.view.currentStart);
+    const togglesContainer = document.getElementById("availability-toggles");
+    togglesContainer.innerHTML = "";
+    const startOfWeek = new Date(calendar.view.currentStart);
 
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + i);
-    const dateString = date.toISOString().split("T")[0];
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        const dateString = date.toISOString().split("T")[0];
 
-    const toggle = document.createElement("div");
-    toggle.innerHTML = `
-            <label class="inline-flex items-center mt-3">
-                <input type="checkbox" class="form-checkbox h-5 w-5 text-gray-600" ${
-                  availability[dateString] === "available" ? "checked" : ""
+        const toggle = document.createElement("div");
+        toggle.className = "flex items-center justify-between py-2";
+        toggle.innerHTML = `
+            <span class="text-gray-700">${date.toDateString()}</span>
+            <label class="inline-flex items-center">
+                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600" ${
+                    availability[dateString] === "available" ? "checked" : ""
                 }>
-                <span class="ml-2 text-gray-700">${date.toDateString()}</span>
+                <span class="ml-2 text-gray-700">${availability[dateString] === "available" ? "Available" : "Unavailable"}</span>
             </label>
         `;
 
-    toggle.querySelector("input").addEventListener("change", (e) => {
-      availability[dateString] = e.target.checked ? "available" : "unavailable";
-    });
+        toggle.querySelector("input").addEventListener("change", (e) => {
+            availability[dateString] = e.target.checked ? "available" : "unavailable";
+            e.target.nextElementSibling.textContent = e.target.checked ? "Available" : "Unavailable";
+        });
 
-    togglesContainer.appendChild(toggle);
-  }
+        togglesContainer.appendChild(toggle);
+    }
 }
 
 async function checkAuthentication() {
@@ -494,7 +532,6 @@ async function copyPreviousWeek() {
         : "unavailable";
     });
     populateAvailabilityToggles();
-    updateCalendarAvailability();
   }
 }
 
@@ -507,5 +544,4 @@ function setWholeWeek(status) {
     availability[dateString] = status;
   }
   populateAvailabilityToggles();
-  updateCalendarAvailability();
 }
