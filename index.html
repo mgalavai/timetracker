@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.21.0/dist/umd/supabase.min.js"></script>
+    <style>
+        .fc-daygrid-day.available { background-color: #d1fae5; }
+        .fc-daygrid-day.unavailable { background-color: #fee2e2; }
+        .fc-daygrid-day.not-set { background-color: #f3f4f6; }
+        
+        /* New styles for today's date */
+        .fc-day-today { 
+            position: relative;
+            z-index: 1;
+        }
+        .fc-day-today::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px solid #3b82f6;
+            pointer-events: none;
+            z-index: 2;
+        }
+        /* Ensure the day number is above the border */
+        .fc-daygrid-day-top {
+            position: relative;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="login-container" class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-4">Time Tracker Login</h1>
+        <form id="login-form" class="bg-white rounded px-8 pt-6 pb-8 mb-4">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="email">Email</label>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="email" type="email" placeholder="Email">
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" type="password" placeholder="******************">
+            </div>
+            <div class="flex items-center justify-between">
+                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Sign In</button>
+            </div>
+        </form>
+    </div>
+    
+    <div id="calendar-container" class="container mx-auto px-4 py-8 hidden">
+        <div id="header" class="bg-white rounded-lg p-4 mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <h1 id="welcome-message" class="text-2xl font-bold"></h1>
+                <button id="logout-button" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                    Logout
+                </button>
+            </div>
+            <p id="month-summary" class="text-lg font-semibold text-gray-600"></p>
+        </div>
+        
+        <div class="bg-white rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                    <button id="prev-week" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-l">
+                        Prev
+                    </button>
+                    <button id="next-week" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-r">
+                        Next
+                    </button>
+                    <button id="today" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2">
+                        Today
+                    </button>
+                </div>
+                <h2 id="current-week" class="text-lg font-semibold text-gray-800"></h2>
+            </div>
+            <div id="calendar"></div>
+        </div>
+        
+        <div id="hours-entry" class="bg-white rounded-lg p-4 mb-4">
+            <h2 class="text-xl font-bold mb-2">Enter Hours</h2>
+            <p id="selected-date" class="mb-2"></p>
+            <div class="flex items-center mb-4">
+                <input type="number" id="hours-input" class="border rounded py-2 px-3 mr-2 flex-grow" step="0.5" min="0" max="8" placeholder="Hours worked">
+                <button id="save-hours" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Save Hours
+                </button>
+            </div>
+            <div id="message" class="hidden mt-2 p-2 rounded"></div>
+        </div>
+        
+        <div class="bg-white rounded-lg p-4">
+            <h2 class="text-xl font-bold mb-4">Availability</h2>
+            <button id="edit-availability" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">
+                Edit Availability
+            </button>
+            <div id="availability-editor" class="hidden">
+                <div id="availability-toggles" class="mb-4"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="copy-previous-week" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Copy from Previous Week
+                    </button>
+                    <button id="off-whole-week" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                        OFF the Whole Week
+                    </button>
+                    <button id="available-whole-week" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Available the Whole Week
+                    </button>
+                    <button id="save-availability" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="calendar.js"></script>
+</body>
+</html>
