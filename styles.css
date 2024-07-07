@@ -1,0 +1,145 @@
+/* Calendar day styles */
+.fc-daygrid-day.available { background-color: #d1fae5; }
+.fc-daygrid-day.unavailable { background-color: #fee2e2; }
+.fc-daygrid-day.not-set { background-color: #f3f4f6; }
+
+/* Today's date highlight */
+.fc-day-today { 
+    position: relative;
+    z-index: 1;
+}
+.fc-day-today::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid #3b82f6;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Hide unwanted elements */
+.fc-daygrid-day-events,
+.fc-daygrid-day-bg {
+    display: none !important;
+}
+
+/* Adjust day cell layout */
+.fc-daygrid-day-frame {
+    min-height: 80px !important;
+    height: 100% !important;
+}
+
+.fc-daygrid-day-top {
+    height: auto !important;
+}
+
+.day-content {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.day-header {
+    text-align: right !important;
+    padding: 5px !important;
+    font-size: 0.9em !important;
+    color: #666 !important;
+}
+
+.hours-worked {
+    flex-grow: 1 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    font-size: 1.2em !important;
+    font-weight: bold !important;
+}
+
+/* Disable flex on day-top to allow better centering */
+.fc .fc-daygrid-day-top {
+    display: block !important;
+    text-align: right !important;
+}
+
+/* Adjust calendar header styles */
+.fc-col-header-cell {
+    background-color: #f3f4f6;
+    padding: 10px 0;
+}
+
+.fc-col-header-cell-cushion {
+    padding: 5px;
+    font-weight: normal;
+    display: inline-block;
+}
+
+/* Ensure proper spacing for the first row of the calendar */
+.fc-scrollgrid-sync-table {
+    border-top: 1px solid #ddd;
+}
+
+/* Add some margin to the top of the calendar to prevent overlap */
+.fc {
+    margin-top: 20px;
+}
+
+/* Remove default event styling */
+.fc-event {
+    background: none !important;
+    border: none !important;
+}
+
+/* Ensure the event container takes full height of the cell */
+.fc-daygrid-event-harness {
+    margin-top: 0 !important;
+}
+
+/* Ensure day number is above other elements */
+.fc-daygrid-day-top {
+    position: relative;
+    z-index: 4;
+}
+
+/* Ensure the day frame takes up full height */
+.fc .fc-daygrid-body-unbalanced .fc-daygrid-day-events {
+    position: absolute !important;
+    min-height: 2em !important;
+    top: 0 !important;
+    bottom: 0 !important;
+}
+
+/* Edit Availability link styles */
+#edit-availability {
+    display: inline-block;
+    margin-top: 1rem;
+    font-weight: 500;
+}
+
+/* Availability editor styles */
+#availability-editor {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+}
+
+/* Availability overlay styles */
+#availability-overlay {
+    backdrop-filter: blur(5px);
+}
+
+/* Current week display styles */
+#current-week {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+}

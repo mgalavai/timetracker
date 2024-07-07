@@ -1,4 +1,3 @@
-
 const supabase = window.supabase.createClient(
   "https://jejjtimupqbebejmhjjj.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Implamp0aW11cHFiZWJlam1oampqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjAwMDYxNzQsImV4cCI6MjAzNTU4MjE3NH0.GXfRYuMlXrhka71F1zme8ZScTKpBJVpGBCv1HMCtPc0"
@@ -8,6 +7,7 @@ let calendar;
 let currentUser;
 let selectedDate;
 let availability = {};
+let initialAvailability = {};
 
 document.addEventListener("DOMContentLoaded", function () {
   initializeEventListeners();
@@ -33,33 +33,29 @@ function initializeEventListeners() {
     saveAvailabilityButton.addEventListener("click", saveAvailability);
   }
 
-  const copyPreviousWeekLink = document.getElementById("copy-previous-week");
-  if (copyPreviousWeekLink) {
-    copyPreviousWeekLink.addEventListener("click", function(e) {
-      e.preventDefault();
-      copyPreviousWeek();
-    });
+  const copyPreviousWeekButton = document.getElementById("copy-previous-week");
+  if (copyPreviousWeekButton) {
+    copyPreviousWeekButton.addEventListener("click", copyPreviousWeek);
   }
 
-  const offWholeWeekLink = document.getElementById("off-whole-week");
-  if (offWholeWeekLink) {
-    offWholeWeekLink.addEventListener("click", function(e) {
-      e.preventDefault();
-      setWholeWeek("unavailable");
-    });
+  const offWholeWeekButton = document.getElementById("off-whole-week");
+  if (offWholeWeekButton) {
+    offWholeWeekButton.addEventListener("click", () => setWholeWeek("unavailable"));
   }
 
-  const availableWholeWeekLink = document.getElementById("available-whole-week");
-  if (availableWholeWeekLink) {
-    availableWholeWeekLink.addEventListener("click", function(e) {
-      e.preventDefault();
-      setWholeWeek("available");
-    });
+  const availableWholeWeekButton = document.getElementById("available-whole-week");
+  if (availableWholeWeekButton) {
+    availableWholeWeekButton.addEventListener("click", () => setWholeWeek("available"));
   }
 
   const saveHoursButton = document.getElementById("save-hours");
   if (saveHoursButton) {
     saveHoursButton.addEventListener("click", saveHours);
+  }
+
+  const logoutButton = document.getElementById("logout-button");
+  if (logoutButton) {
+    logoutButton.addEventListener("click", handleLogout);
   }
 
   const prevWeekButton = document.getElementById("prev-week");
@@ -77,9 +73,13 @@ function initializeEventListeners() {
     todayButton.addEventListener("click", () => navigateWeek('today'));
   }
 
-  const logoutButton = document.getElementById("logout-button");
-  if (logoutButton) {
-    logoutButton.addEventListener("click", handleLogout);
+  const availabilityOverlay = document.getElementById("availability-overlay");
+  if (availabilityOverlay) {
+    availabilityOverlay.addEventListener("click", function(e) {
+      if (e.target === availabilityOverlay) {
+        closeAvailabilityEditor();
+      }
+    });
   }
 }
 
@@ -87,7 +87,6 @@ async function checkUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     currentUser = user;
-    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('first_name, last_name')
@@ -115,7 +114,6 @@ function showCalendar() {
   document.getElementById("login-container").classList.add("hidden");
   document.getElementById("calendar-container").classList.remove("hidden");
   
-  // Set welcome message and add logout button
   const headerElement = document.getElementById("header");
   headerElement.innerHTML = `
     <div class="flex justify-between items-center mb-2">
@@ -127,12 +125,12 @@ function showCalendar() {
     <p id="month-summary" class="text-lg font-semibold text-gray-600"></p>
   `;
   
-  // Add event listener for logout button
   document.getElementById("logout-button").addEventListener("click", handleLogout);
   
   initializeCalendar();
   updateMonthSummary();
 }
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById("email").value;
@@ -149,7 +147,6 @@ async function handleLogin(e) {
     currentUser = data.user;
     console.log("Logged in user ID:", currentUser.id);
     
-    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('first_name, last_name')
@@ -183,43 +180,47 @@ function initializeCalendar() {
   var calendarEl = document.getElementById("calendar");
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: "dayGridWeek",
-    headerToolbar: {
-      left: 'title',
-      center: '',
-      right: ''
-    },
-    titleFormat: { year: 'numeric', month: 'long' },
+    headerToolbar: false,
     height: "auto",
     selectable: true,
-    firstDay: 1, // Start week on Monday
+    firstDay: 1,
+    dayCellContent: function(info) {
+      let dayNumber = info.dayNumberText;
+      let dateStr = info.date.toISOString().split('T')[0];
+      return {html: `
+        <div class="day-content">
+          <div class="day-header">${dayNumber}</div>
+          <div class="hours-worked" data-date="${dateStr}"></div>
+        </div>
+      `};
+    },
     select: function (info) {
       selectedDate = info.start;
       updateSelectedDate();
     },
-    dayCellDidMount: function (info) {
+    dayCellDidMount: function(info) {
       updateDayCellStyle(info.el, info.date);
     },
   });
   calendar.render();
+  
+  removeUnwantedElements();
+  
   fetchEvents();
   fetchAvailability();
   selectedDate = new Date();
   updateSelectedDate();
-
-  // Move the title to our custom element
-  const titleElement = calendarEl.querySelector('.fc-toolbar-title');
-  document.getElementById('current-month').appendChild(titleElement);
+  
+  updateCurrentWeekDisplay();
+  
+  document.getElementById("prev-week").addEventListener("click", () => navigateWeek('prev'));
+  document.getElementById("next-week").addEventListener("click", () => navigateWeek('next'));
+  document.getElementById("today").addEventListener("click", () => navigateWeek('today'));
 }
 
-function updateCurrentWeekDisplay() {
-  const start = calendar.view.currentStart;
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  
-  const options = { month: 'short', day: 'numeric', year: 'numeric' };
-  const dateRange = `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
-  
-  document.getElementById("current-week").textContent = dateRange;
+function removeUnwantedElements() {
+  const unwantedElements = document.querySelectorAll('.fc-daygrid-day-events, .fc-daygrid-day-bg');
+  unwantedElements.forEach(el => el.remove());
 }
 
 function navigateWeek(direction) {
@@ -231,8 +232,24 @@ function navigateWeek(direction) {
     calendar.today();
   }
   updateCurrentWeekDisplay();
+  removeUnwantedElements();
   fetchEvents();
   fetchAvailability();
+}
+
+function updateCurrentWeekDisplay() {
+  const start = calendar.view.currentStart;
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  
+  if (start.getMonth() !== end.getMonth()) {
+    const startMonth = start.toLocaleString('default', { month: 'long' });
+    const endMonth = end.toLocaleString('default', { month: 'long' });
+    document.getElementById("current-week").textContent = `${startMonth} - ${endMonth}`;
+  } else {
+    const month = start.toLocaleString('default', { month: 'long' });
+    document.getElementById("current-week").textContent = month;
+  }
 }
 
 function updateSelectedDate() {
@@ -253,13 +270,12 @@ async function fetchEvents() {
   if (error) {
     console.error("Error fetching events:", error);
   } else {
-    calendar.removeAllEvents();
     data.forEach((entry) => {
-      calendar.addEvent({
-        title: `${entry.hours_worked} h`,
-        start: entry.date,
-        allDay: true,
-      });
+      const dateStr = entry.date;
+      const hoursElement = document.querySelector(`.hours-worked[data-date="${dateStr}"]`);
+      if (hoursElement) {
+        hoursElement.textContent = `${entry.hours_worked.toFixed(1)}h`;
+      }
     });
   }
   updateMonthSummary();
@@ -277,7 +293,6 @@ async function saveHours() {
     return;
   }
 
-  // First, check if an entry already exists for this date
   const { data: existingEntry, error: fetchError } = await supabase
     .from("time_entries")
     .select("id")
@@ -292,13 +307,11 @@ async function saveHours() {
 
   let result;
   if (existingEntry) {
-    // Update existing entry
     result = await supabase
       .from("time_entries")
       .update({ hours_worked: parseFloat(hours) })
       .eq("id", existingEntry.id);
   } else {
-    // Insert new entry
     result = await supabase
       .from("time_entries")
       .insert([
@@ -392,53 +405,84 @@ function updateDayCellStyle(element, date) {
 
 function toggleAvailabilityEditor() {
   const editor = document.getElementById("availability-editor");
-  editor.classList.toggle("hidden");
-  if (!editor.classList.contains("hidden")) {
+  const overlay = document.getElementById("availability-overlay");
+  
+  if (editor.classList.contains("hidden")) {
+    editor.classList.remove("hidden");
+    overlay.classList.remove("hidden");
     populateAvailabilityToggles();
-    // Scroll to the availability editor
-    editor.scrollIntoView({ behavior: 'smooth' });
+    disableCalendarNavigation();
+    initialAvailability = JSON.parse(JSON.stringify(availability));
+  } else {
+    closeAvailabilityEditor();
   }
+}
+
+function closeAvailabilityEditor() {
+  const editor = document.getElementById("availability-editor");
+  const overlay = document.getElementById("availability-overlay");
+  
+  if (isFormDirty()) {
+    if (confirm("You have unsaved changes. Are you sure you want to close?")) {
+      editor.classList.add("hidden");
+      overlay.classList.add("hidden");
+      enableCalendarNavigation();
+    }
+  } else {
+    editor.classList.add("hidden");
+    overlay.classList.add("hidden");
+    enableCalendarNavigation();
+  }
+}
+
+function isFormDirty() {
+  return JSON.stringify(initialAvailability) !== JSON.stringify(availability);
 }
 
 function populateAvailabilityToggles() {
-    const togglesContainer = document.getElementById("availability-toggles");
-    togglesContainer.innerHTML = "";
-    const startOfWeek = new Date(calendar.view.currentStart);
+  const togglesContainer = document.getElementById("availability-toggles");
+  togglesContainer.innerHTML = "";
+  const startOfWeek = new Date(calendar.view.currentStart);
 
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-        const dateString = date.toISOString().split("T")[0];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startOfWeek);
+    date.setDate(startOfWeek.getDate() + i);
+    const dateString = date.toISOString().split('T')[0];
 
-        const toggle = document.createElement("div");
-        toggle.className = "flex items-center justify-between py-2";
-        toggle.innerHTML = `
-            <span class="text-gray-700">${date.toDateString()}</span>
-            <label class="inline-flex items-center">
-                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600" ${
-                    availability[dateString] === "available" ? "checked" : ""
-                }>
-                <span class="ml-2 text-gray-700">${availability[dateString] === "available" ? "Available" : "Unavailable"}</span>
-            </label>
-        `;
+    const formattedDate = date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: '2-digit'
+    });
 
-        toggle.querySelector("input").addEventListener("change", (e) => {
-            availability[dateString] = e.target.checked ? "available" : "unavailable";
-            e.target.nextElementSibling.textContent = e.target.checked ? "Available" : "Unavailable";
-        });
+    const toggle = document.createElement("div");
+    toggle.innerHTML = `
+      <label class="inline-flex items-center mt-3">
+        <input type="checkbox" class="form-checkbox h-5 w-5 text-gray-600" ${
+          availability[dateString] === "available" ? "checked" : ""
+        }>
+        <span class="ml-2 text-gray-700">${formattedDate}</span>
+      </label>
+    `;
 
-        togglesContainer.appendChild(toggle);
-    }
+    toggle.querySelector("input").addEventListener("change", (e) => {
+      availability[dateString] = e.target.checked ? "available" : "unavailable";
+    });
+
+    togglesContainer.appendChild(toggle);
+  }
 }
 
-async function checkAuthentication() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    alert("You are not authenticated. Please log in.");
-    showLoginForm();
-    return false;
-  }
-  return true;
+function disableCalendarNavigation() {
+  document.getElementById("prev-week").disabled = true;
+  document.getElementById("next-week").disabled = true;
+  document.getElementById("today").disabled = true;
+}
+
+function enableCalendarNavigation() {
+  document.getElementById("prev-week").disabled = false;
+  document.getElementById("next-week").disabled = false;
+  document.getElementById("today").disabled = false;
 }
 
 async function saveAvailability() {
@@ -456,7 +500,6 @@ async function saveAvailability() {
 
   let hasError = false;
   for (let entry of availabilityEntries) {
-    // First, check if the entry exists
     const { data: existingData, error: checkError } = await supabase
       .from("availability")
       .select("*")
@@ -472,7 +515,6 @@ async function saveAvailability() {
 
     let saveError;
     if (existingData) {
-      // Update existing entry
       const { data, error } = await supabase
         .from("availability")
         .update({ is_available: entry.is_available })
@@ -480,7 +522,6 @@ async function saveAvailability() {
         .eq("date", entry.date);
       saveError = error;
     } else {
-      // Insert new entry
       const { data, error } = await supabase
         .from("availability")
         .insert([entry]);
@@ -502,6 +543,7 @@ async function saveAvailability() {
     );
   } else {
     alert("Availability saved successfully!");
+    initialAvailability = JSON.parse(JSON.stringify(availability));
   }
   fetchAvailability();
   toggleAvailabilityEditor();
@@ -532,6 +574,7 @@ async function copyPreviousWeek() {
         : "unavailable";
     });
     populateAvailabilityToggles();
+    updateCalendarAvailability();
   }
 }
 
@@ -544,4 +587,15 @@ function setWholeWeek(status) {
     availability[dateString] = status;
   }
   populateAvailabilityToggles();
+  updateCalendarAvailability();
+}
+
+async function checkAuthentication() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    alert("You are not authenticated. Please log in.");
+    showLoginForm();
+    return false;
+  }
+  return true;
 }
